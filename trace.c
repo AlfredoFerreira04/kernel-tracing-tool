@@ -50,6 +50,11 @@ static int dequeue(char *buffer) {
                 strcpy(evt, "UK_EVT");
         }
 
+        increment(&trace.read_item);
+        ret = 1;
+
+        spin_unlock(&trace.lock);
+
         len = sprintf(buffer, "%llu,", trace.events[trace.read_item].time);
         len += sprintf(buffer + len, "%s,", evt);
         len += sprintf(buffer + len, "*%d*,", (int)trace.events[trace.read_item].number);
@@ -59,11 +64,10 @@ static int dequeue(char *buffer) {
         len += sprintf(buffer + len, "%d,", (int)trace.events[trace.read_item].state);
         len += sprintf(buffer + len, "%s\n", trace.events[trace.read_item].comm);
 
-        increment(&trace.read_item);
-        ret = 1;
+    }else{
+        spin_unlock(&trace.lock);
     }
 
-    spin_unlock(&trace.lock);
     return ret;
 }
 
@@ -131,7 +135,7 @@ static int __init proc_trace_init(void) {
 
 module_init(proc_trace_init);
 
-void moker_trace(enum evt event, int number, struct task_struct *p) {
+void moker_trace(enum evt event, struct task_struct *p, int number) {
     unsigned long long time;
 
     time = ktime_to_ns(ktime_get());
